@@ -12,8 +12,8 @@ primary_region = "nrt" # 지휘관님 위치(한국)와 가까운 도쿄(nrt) �
   min_machines_running = 1
 
 [[mounts]]
-  source = "vol_data"
-  destination = "/data"
+  source = "code_data"
+  destination = "/code_data"
   initial_size = "500gb" # 500GB 디스크 연결
 
 [[services]]
