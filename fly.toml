@@ -1,8 +1,13 @@
-app = "rootvscode" # 원하는 이름으로 변경하세요
-primary_region = "nrt" # 지휘관님 위치(한국)와 가까운 도쿄(nrt) 추천
+app = "rootvscode"
+primary_region = "nrt"
 
 [build]
   dockerfile = "Dockerfile"
+
+[vm]
+  cpu_kind = "performance"
+  cpus = 16
+  memory_mb = 131072  # 128GB 램 풀파워
 
 [http_service]
   internal_port = 8080
@@ -14,31 +19,13 @@ primary_region = "nrt" # 지휘관님 위치(한국)와 가까운 도쿄(nrt) �
 [[mounts]]
   source = "code_data"
   destination = "/home/coder"
-  initial_size = "500gb" # 500GB 디스크 연결
-
-[[services]]
-  protocol = "tcp"
-  internal_port = 8006
-  ports = [
-    { port = 8006, handlers = ["http", "tls"] }
-  ]
+  initial_size = "500gb"
 
 [env]
-  # 1. [접속 권한] 문 따고 들어갑니다 (비밀번호 제거)
   PASSWORD = ""
-  hashed-password = ""
   VSCODE_AUTH = "none"
-
-  # 2. [시스템 기초] 인코딩 깨짐 방지 및 루트 홈 지정
-  LANG = "en_US.UTF-8"
-  LC_ALL = "en_US.UTF-8"
-  LANGUAGE = "en_US.UTF-8"
   HOME = "/root"
   USER = "root"
-
-  # 3. [QEMU 엔진 튜닝] 불필요한 리소스 차단 (오디오 끄고 성능 집중)
-  QEMU_AUDIO_DRV = "none"
-  
-  # 4. [커널 빌드 최적화] 컴파일 속도 향상 (나중에 쓸 옵션)
-  DEBIAN_FRONTEND = "noninteractive"
-  MAKEFLAGS = "-j16"  # 16코어를 전부 갈아넣어 빌드하라는 명령
+  QEMU_AUDIO_DRV = "pa" 
+  SDL_AUDIODRIVER = "pulse"
+  MAKEFLAGS = "-j16"
