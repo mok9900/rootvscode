@@ -7,7 +7,7 @@ primary_region = "nrt"
 [vm]
   cpu_kind = "performance"
   cpus = 16
-  memory_mb = 131072  # 128GB 램 풀파워
+  memory_mb = 131072 
 
 [http_service]
   internal_port = 8080
@@ -18,7 +18,7 @@ primary_region = "nrt"
 
 [[mounts]]
   source = "code_data"
-  destination = "/home/coder"
+  destination = "/home/code"
   initial_size = "500gb"
 
 [env]
