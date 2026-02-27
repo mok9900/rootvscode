@@ -1,31 +1,23 @@
-app = "rootvscode"
-primary_region = "nrt"
+# fly.toml app configuration file generated for rootvscode on 2026-02-27T10:36:52Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'rootvscode'
+primary_region = 'nrt'
 
 [build]
-  dockerfile = "Dockerfile"
-
-[vm]
-  cpu_kind = "performance"
-  cpus = 16
-  memory_mb = 131072 
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = false
+  auto_stop_machines = 'stop'
   auto_start_machines = true
-  min_machines_running = 1
+  min_machines_running = 0
+  processes = ['app']
 
-[[mounts]]
-  source = "code_data"
-  destination = "/home/code"
-  initial_size = "500gb"
-
-[env]
-  PASSWORD = ""
-  VSCODE_AUTH = "none"
-  HOME = "/root"
-  USER = "root"
-  QEMU_AUDIO_DRV = "pa" 
-  SDL_AUDIODRIVER = "pulse"
-  MAKEFLAGS = "-j16"
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 131072
