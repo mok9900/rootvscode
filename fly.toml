@@ -17,7 +17,7 @@ primary_region = 'nrt'
   processes = ['app']
 
 [[vm]]
-  memory = '1gb'
-  cpu_kind = 'shared'
+  memory = '500gb'
+  cpu_kind = 'performance'
   cpus = 1
-  memory_mb = 131072
+  memory_mb = 2048
