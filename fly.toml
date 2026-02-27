@@ -6,8 +6,9 @@ primary_region = "nrt"
 
 [vm]
   cpu_kind = "performance"
-  cpus = 16
-  memory_mb = 131072 
+  cpus = "1"
+  memory_mb = "2048"
+  memory = "500gb"
 
 [http_service]
   internal_port = 8080
