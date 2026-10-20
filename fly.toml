@@ -4,11 +4,10 @@ primary_region = "nrt"
 [build]
   dockerfile = "Dockerfile"
 
-[vm]
+[[vm]]
   cpu_kind = "performance"
-  cpus = "1"
-  memory_mb = "2048"
-  memory = "500gb"
+  cpus = 1
+  memory = "2gb"
 
 [http_service]
   internal_port = 8080
@@ -19,14 +18,10 @@ primary_region = "nrt"
 
 [[mounts]]
   source = "code_data"
-  destination = "/home/code"
-  initial_size = "500gb"
+  destination = "/data"
+  initial_size = "20gb"
 
 [env]
-  PASSWORD = ""
-  VSCODE_AUTH = "none"
   HOME = "/root"
   USER = "root"
-  QEMU_AUDIO_DRV = "pa" 
-  SDL_AUDIODRIVER = "pulse"
-  MAKEFLAGS = "-j16"
+  KVM_MODE = "auto"

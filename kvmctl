@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# Every supported VM execution path uses real KVM. TCG is never configured.
+set -Eeuo pipefail
+HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+usage() {
+  cat <<'HELP'
+Usage:
+  kvmctl check                 Verify a real KVM backend
+  kvmctl mode                  Print active backend: local or remote
+  kvmctl run <qemu args...>    Run a VM locally with mandatory -accel kvm
+  kvmctl list                  List VMs on remote KVM/libvirt host
+  kvmctl define <domain.xml>   Define a KVM-only VM remotely
+  kvmctl start <name>          Start a verified KVM VM remotely
+  kvmctl shutdown <name>       Gracefully shut down a remote KVM VM
+  kvmctl status <name>         Show remote VM state
+
+KVM_MODE: auto (default), local, remote.
+Remote needs KVM_REMOTE_URI=qemu+ssh://user@host/system and pinned SSH credentials.
+No TCG or software-emulation fallback exists.
+HELP
+}
+die() { echo "KVM_ERROR: $*" >&2; exit 1; }
+
+probe_local() { python3 "$HERE/kvm_probe.py"; }
+probe_remote() {
+  [[ -n "${KVM_REMOTE_URI:-}" ]] || die "KVM_REMOTE_URI is unset"
+  [[ "$KVM_REMOTE_URI" == qemu+ssh://* ]] || die "only authenticated qemu+ssh:// transport is supported"
+  command -v virsh >/dev/null || die "virsh not installed"
+  virsh -c "$KVM_REMOTE_URI" capabilities | python3 "$HERE/verify_kvm_xml.py" capabilities \
+    || die "remote host does not advertise a KVM domain"
+  virsh -c "$KVM_REMOTE_URI" domcapabilities --virttype kvm | \
+    python3 "$HERE/verify_kvm_xml.py" domcapabilities \
+    || die "remote host cannot provide KVM domain capabilities"
+}
+
+backend=""
+select_backend() {
+  case "${KVM_MODE:-auto}" in
+    local) probe_local >&2 || die "local KVM not available"; backend="local" ;;
+    remote) probe_remote >&2 || die "remote KVM not available"; backend="remote" ;;
+    auto)
+      if probe_local >/dev/null 2>&1; then
+        backend="local"
+      elif [[ -n "${KVM_REMOTE_URI:-}" ]]; then
+        probe_remote >&2 || die "remote KVM not available"
+        backend="remote"
+      else
+        die "no local KVM and no remote KVM host configured"
+      fi
+      ;;
+    *) die "invalid KVM_MODE; expected auto, local, or remote" ;;
+  esac
+}
+
+remote_only() { [[ "$backend" == "remote" ]] || die "'$1' requires remote libvirt; local KVM uses 'kvmctl run'"; }
+verify_domain() {
+  local name="$1"
+  virsh -c "$KVM_REMOTE_URI" dumpxml "$name" | python3 "$HERE/verify_kvm_xml.py" domain \
+    || die "domain '$name' is not a KVM domain"
+}
+
+command="${1:-help}"
+if [[ "$command" == help || "$command" == --help || "$command" == -h ]]; then usage; exit 0; fi
+shift
+select_backend
+case "$command" in
+  check) [[ $# == 0 ]] || die "check takes no arguments"; echo "KVM_READY backend=$backend" ;;
+  mode) [[ $# == 0 ]] || die "mode takes no arguments"; echo "$backend" ;;
+  run)
+    [[ "$backend" == local ]] || die "run requires local KVM; use remote 'define' and 'start'"
+    [[ $# -gt 0 ]] || die "provide QEMU machine/disk arguments"
+    for arg in "$@"; do
+      case "$arg" in
+        -accel|-accel=*|-machine|-machine=*|-M|-M=*|-enable-kvm|-no-kvm|-readconfig)
+          die "accelerator/machine override forbidden; kvmctl forces -accel kvm" ;;
+      esac
+    done
+    exec qemu-system-x86_64 -accel kvm "$@" ;;
+  list)
+    remote_only list
+    [[ $# == 0 ]] || die "list takes no arguments"
+    virsh -c "$KVM_REMOTE_URI" list --all ;;
+  define)
+    remote_only define
+    [[ $# == 1 ]] || die "define requires one KVM domain XML file"
+    python3 "$HERE/verify_kvm_xml.py" domain "$1" || die "refusing a non-KVM domain"
+    virsh -c "$KVM_REMOTE_URI" define "$1" ;;
+  start)
+    remote_only start
+    [[ $# == 1 ]] || die "start requires a domain name"
+    verify_domain "$1"
+    virsh -c "$KVM_REMOTE_URI" start "$1" ;;
+  shutdown)
+    remote_only shutdown
+    [[ $# == 1 ]] || die "shutdown requires a domain name"
+    verify_domain "$1"
+    virsh -c "$KVM_REMOTE_URI" shutdown "$1" ;;
+  status)
+    remote_only status
+    [[ $# == 1 ]] || die "status requires a domain name"
+    verify_domain "$1"
+    virsh -c "$KVM_REMOTE_URI" domstate "$1" ;;
+  *) usage; die "unknown command: $command" ;;
+esac

@@ -1,21 +1,29 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
 
-echo "🔥 [ROOTING] Bypassing Firecracker Jail with 128GB RAM Power..."
+if [[ -z "${PASSWORD:-}" && -z "${HASHED_PASSWORD:-}" ]]; then
+  echo >&2 "ERROR: Set PASSWORD or HASHED_PASSWORD through Fly secrets before starting code-server."
+  exit 1
+fi
 
-# 1. 128GB 램 활용을 위한 커널 파라미터 튜닝
-# 램 부족으로 죽는 일 없도록 overcommit을 허용합니다.
-echo 1 > /proc/sys/vm/overcommit_memory 2>/dev/null || true
+mkdir -p /data/workspace /data/code-server/user-data /data/code-server/extensions
 
-# 2. KVM 강제 점유 스크립트 백그라운드 실행
-/usr/local/bin/kvm-rooting.sh &
+if [[ -n "${KVM_REMOTE_URI:-}" ]]; then
+  /usr/local/bin/setup_kvm_ssh.sh
+fi
 
-# 3. 오디오 서버 기동
-pulseaudio --start --exit-idle-time=-1 --system=false 2>/dev/null || true
+if /usr/local/bin/kvmctl check; then
+  echo "KVM backend verified."
+else
+  echo >&2 "WARNING: No verified KVM backend. Code-server will start; VM commands fail closed."
+  echo >&2 "Configure an actual KVM-capable host or use a platform that exposes /dev/kvm."
+fi
 
-# 4. VSCode (Root Mode)
-echo "🚀 Starting VSCode (Root Mode)..."
-code-server --bind-addr 0.0.0.0:8080 --auth none --user-data-dir /root/.local/share/code-server --extensions-dir /root/.local/share/code-server/extensions &
-
-echo "✅ 128GB Monster RAM & 16 Cores Ready."
-wait
+# PID 1 belongs to code-server; a failed web service exits the container.
+exec code-server \
+  --bind-addr 0.0.0.0:8080 \
+  --auth password \
+  --user-data-dir /data/code-server/user-data \
+  --extensions-dir /data/code-server/extensions \
+  /data/workspace
