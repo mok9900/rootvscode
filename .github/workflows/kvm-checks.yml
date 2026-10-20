@@ -1,0 +1,18 @@
+name: KVM-only static checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate shell scripts
+        run: |
+          bash -n entrypoint.sh setup_kvm_ssh.sh kvmctl tests/test_kvmctl.sh
+      - name: Validate KVM XML and fail-closed behavior
+        run: |
+          python3 -m unittest discover -s tests -v
+          bash tests/test_kvmctl.sh
